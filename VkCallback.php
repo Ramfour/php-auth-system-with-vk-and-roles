@@ -1,21 +1,24 @@
 <?php
 /**
- * Обработчик callback от VK OAuth
+ * VK OAuth callback handler
  */
 
-require_once 'config.php';
-require_once 'functions.php';
+require_once 'Bootstrap.php';
 
-$pdo = require 'db.php';
+use App\Auth;
+use App\Database;
+use App\Helper;
 
-// Проверяем наличие кода авторизации
+$pdo = Database::connect();
+
+// Check for authorization code
 if (!isset($_GET['code'])) {
-    redirect('login.php?error=vk_auth_failed');
+    Helper::redirect('Login.php?error=vk_auth_failed');
 }
 
 $code = $_GET['code'];
 
-// Обмен кода на access_token
+// Exchange code for access_token
 $token_url = 'https://oauth.vk.com/access_token?' . http_build_query([
     'client_id' => VK_APP_ID,
     'client_secret' => VK_APP_SECRET,
@@ -27,13 +30,13 @@ $response = file_get_contents($token_url);
 $data = json_decode($response, true);
 
 if (!isset($data['access_token'])) {
-    redirect('login.php?error=vk_token_failed');
+    Helper::redirect('Login.php?error=vk_token_failed');
 }
 
 $access_token = $data['access_token'];
 $vk_user_id = $data['user_id'];
 
-// Получаем информацию о пользователе VK
+// Get VK user information
 $user_info_url = 'https://api.vk.com/method/users.get?' . http_build_query([
     'user_ids' => $vk_user_id,
     'fields' => 'photo_200',
@@ -45,20 +48,20 @@ $user_response = file_get_contents($user_info_url);
 $user_data = json_decode($user_response, true);
 
 if (!isset($user_data['response'][0])) {
-    redirect('login.php?error=vk_user_info_failed');
+    Helper::redirect('Login.php?error=vk_user_info_failed');
 }
 
 $vk_user = $user_data['response'][0];
 $vk_login = 'vk_' . $vk_user_id;
 $vk_name = $vk_user['first_name'] . ' ' . $vk_user['last_name'];
 
-// Проверяем существование пользователя
+// Check if user exists
 $stmt = $pdo->prepare("SELECT * FROM users WHERE vk_id = ?");
 $stmt->execute([$vk_user_id]);
 $user = $stmt->fetch();
 
 if (!$user) {
-    // Создаём нового пользователя VK
+    // Create new VK user
     $stmt = $pdo->prepare("
         INSERT INTO users (login, password_hash, role, vk_id) 
         VALUES (?, NULL, 'vk_user', ?)
@@ -71,11 +74,11 @@ if (!$user) {
     $_SESSION['role'] = 'vk_user';
     $_SESSION['vk_name'] = $vk_name;
 } else {
-    // Авторизуем существующего пользователя
+    // Login existing user
     $_SESSION['user_id'] = $user['id'];
     $_SESSION['login'] = $user['login'];
     $_SESSION['role'] = $user['role'];
     $_SESSION['vk_name'] = $vk_name;
 }
 
-redirect('dashboard.php');
+Helper::redirect('Dashboard.php');

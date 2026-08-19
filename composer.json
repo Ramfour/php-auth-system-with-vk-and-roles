@@ -1,0 +1,20 @@
+{
+    "name": "ramfour/php-auth-system-with-vk",
+    "description": "PHP authentication system with VK OAuth and role-based access control",
+    "type": "project",
+    "license": "MIT",
+    "require": {
+        "php": ">=8.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Ramfour",
+            "email": "ramfour@example.com"
+        }
+    ]
+}
